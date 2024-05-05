@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { v4 as uuidv4 } from 'uuid'
-import { collection, addDoc } from 'firebase/firestore'
+import { collection, addDoc, getDocs } from 'firebase/firestore'
 import { firestore } from '../firebase/firebaseConfig'
 
 export default function AddContactsPage() {
@@ -9,6 +9,8 @@ export default function AddContactsPage() {
   const [message, setMessage] = useState('')
   const [showError, setShowError] = useState(false)
   const [showPopup, setShowPopup] = useState(false)
+  const [showContactsPopup, setShowContactsPopup] = useState(false)
+  const [allContacts, setAllContacts] = useState<any[]>([])
 
   const PHONE_REGEX = /^[0-9]+$/
 
@@ -96,96 +98,139 @@ export default function AddContactsPage() {
         setErrors([])
       }
 
+      const fetchAllContacts = async () => {
+        try {
+          const querySnapshot = await getDocs(collection(firestore, 'contacts'))
+          const contactsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+          setAllContacts(contactsData)
+        } catch (error) {
+          console.error('Erro ao buscar contatos:', error)
+        }
+      }
+    
+      useEffect(() => {
+        fetchAllContacts()
+      }, [showContactsPopup])
+
       return (
         <main className="flex items-center justify-center min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
           <div className="max-w-md w-full space-y-8">
             <div>
               <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">Adicionar contatos</h2>
-            </div>
-            <form className="mt-8 space-y-6">
-              {contacts.map((contact, index) => (
-                <div key={contact.id}>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <input
-                        type="text"
-                        placeholder="Nome"
-                        value={contact.name}
-                        onChange={e => handleChange(contact.id, 'name', e.target.value)}
-                        className={`appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm ${
-                          errors[index]?.name ? 'border-red-500' : ''
-                        }`}
-                      />
-                      {errors[index]?.name && <p className="text-red-500 text-xs mt-1">{errors[index].name}</p>}
-                    </div>
-                    <div>
-                      <input
-                        type="text"
-                        placeholder="Telefone"
-                        value={contact.phone}
-                        onChange={e => handleChange(contact.id, 'phone', e.target.value)}
-                        className={`appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm ${
-                          errors[index]?.phone ? 'border-red-500' : ''
-                        }`}
-                      />
-                      {errors[index]?.phone && <p className="text-red-500 text-xs mt-1">{errors[index].phone}</p>}
+              <form className="mt-8 space-y-6">
+                {contacts.map((contact, index) => (
+                  <div key={contact.id}>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <input
+                          type="text"
+                          placeholder="Nome"
+                          value={contact.name}
+                          onChange={e => handleChange(contact.id, 'name', e.target.value)}
+                          className={`appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm ${
+                            errors[index]?.name ? 'border-red-500' : ''
+                          }`}
+                        />
+                        {errors[index]?.name && <p className="text-red-500 text-xs mt-1">{errors[index].name}</p>}
+                      </div>
+                      <div>
+                        <input
+                          type="text"
+                          placeholder="Telefone"
+                          value={contact.phone}
+                          onChange={e => handleChange(contact.id, 'phone', e.target.value)}
+                          className={`appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm ${
+                            errors[index]?.phone ? 'border-red-500' : ''
+                          }`}
+                        />
+                        {errors[index]?.phone && <p className="text-red-500 text-xs mt-1">{errors[index].phone}</p>}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-              {showError && !contacts.some((contact, index) => errors[index] && Object.keys(errors[index]).length === 0) && (
-                <p className="text-red-500 text-xs mt-1">Por favor, corrija os erros antes de registrar os contatos.</p>
-              )}
-              {contacts.length < 5 && (
-                <div className="flex justify-center">
-                  <button
-                    type="button"
-                    onClick={addContact}
-                    className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                  >
-                    Adicionar outro contato
-                  </button>
-                </div>
-              )}
-              <div className="flex justify-center">
-                <button
-                  type="button"
-                  onClick={registerContacts}
-                  className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                >
-                  Registrar Contatos
-                </button>
-              </div>
-            </form>
-            {showPopup && (
-              <div className="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 z-50">
-                <div className="bg-white p-6 rounded-lg shadow-lg">
-                  <button className="absolute top-2 right-2 text-gray-600 hover:text-gray-800" onClick={() => setShowPopup(false)}>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Enviar Mensagem</h2>
-                  <textarea
-                    className="border border-gray-300 rounded-md w-full px-3 py-2 placeholder-gray-500 text-gray-900 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none sm:text-sm mb-4"
-                    placeholder="Escreva sua mensagem..."
-                    value={message}
-                    onChange={e => setMessage(e.target.value)}
-                  />
+                ))}
+                {showError && !contacts.some((contact, index) => errors[index] && Object.keys(errors[index]).length === 0) && (
+                  <p className="text-red-500 text-xs mt-1">Por favor, corrija os erros antes de registrar os contatos.</p>
+                )}
+                {contacts.length < 5 && (
                   <div className="flex justify-center">
                     <button
                       type="button"
-                      onClick={sendMessage}
+                      onClick={addContact}
                       className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                     >
-                      Enviar Mensagem
+                      Adicionar outro contato
                     </button>
                   </div>
+                )}
+                <div className="flex justify-center">
+                  <button
+                    type="button"
+                    onClick={registerContacts}
+                    className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  >
+                    Registrar Contatos
+                  </button>
                 </div>
-              </div>
-            )}
+                <div className="flex justify-center mt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowContactsPopup(true)}
+                    className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  >
+                    Mostrar Contatos
+                  </button>
+                </div>
+              </form>
+              {showPopup && (
+                <div className="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 z-50">
+                  <div className="bg-white p-6 rounded-lg shadow-lg">
+                    <button className="absolute top-2 right-2 text-gray-600 hover:text-gray-800" onClick={() => setShowPopup(false)}>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Enviar Mensagem</h2>
+                    <textarea
+                      className="border border-gray-300 rounded-md w-full px-3 py-2 placeholder-gray-500 text-gray-900 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none sm:text-sm mb-4"
+                      placeholder="Escreva sua mensagem..."
+                      value={message}
+                      onChange={e => setMessage(e.target.value)}
+                    />
+                    <div className="flex justify-center">
+                      <button
+                        type="button"
+                        onClick={sendMessage}
+                        className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                      >
+                        Enviar Mensagem
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {showContactsPopup && (
+                <div className="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 z-50">
+                  <div className="bg-white p-6 rounded-lg shadow-lg">
+                    <button className="absolute top-2 right-2 text-gray-600 hover:text-gray-800" onClick={() => setShowContactsPopup(false)}>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Contatos Cadastrados</h2>
+                    <div className="space-y-2">
+                      {allContacts.map((contact, index) => (
+                        <div key={index}>
+                          <p className="font-medium text-gray-900">{contact.name}</p>
+                          <p className="text-gray-900">{contact.phone}</p>
+                          <hr />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </main>
       )
     }
-    
